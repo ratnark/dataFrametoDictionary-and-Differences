@@ -1,0 +1,97 @@
+import pandas as pd
+import numpy as np
+
+traxdf = pd.read_csv('C:\\Users\\1787912\\Desktop\\bal\\QAtrax.csv')  
+wbcshdf = pd.read_csv('C:\\Users\\1787912\\Desktop\\bal\\prodwb.csv')  
+
+'''selecting columns to operate on'''
+
+filteredTrax = traxdf[['treas_code','val_date','item_type','trans_amt']]
+sumOriginalTrax = filteredTrax['trans_amt'].sum()
+filteredWebcash = wbcshdf[['treas_code','val_date','item_type','trans_amt']]
+sumOriginalWb = filteredWebcash['trans_amt'].sum()
+
+'''dropping duplicates and resetting index'''
+"""to find out unique tcodes in both scources"""
+
+treasCodeTrax = pd. DataFrame(filteredTrax.treas_code.unique()).sort_values([0])
+treasCodeWb = pd. DataFrame(filteredWebcash.treas_code.unique()).sort_values([0])
+treasCodeTrax.reset_index(drop=True, inplace=True)
+treasCodeWb.reset_index(drop=True, inplace=True)
+
+'''subtraction of webcash and trax'''
+"""removing all trescodes from Trax which are present in webcash and vice versa"""
+onlyTraxMinusWebcash = treasCodeTrax[~treasCodeTrax.isin(treasCodeWb.to_dict('l')).all(1)] 
+onlyWebcashMinusTrax = treasCodeWb[~treasCodeWb.isin(treasCodeTrax.to_dict('l')).all(1)]
+
+listTrax = []
+listWebcash = []
+
+"""getting list of tcodes which are not present in opposite source codes"""
+
+for i in onlyTraxMinusWebcash.values.tolist():
+    listTrax.append(i[0])
+    
+for i in onlyWebcashMinusTrax.values.tolist():
+    listWebcash.append(i[0])
+
+"""original files with trescodes that are common"""
+
+ft = filteredTrax[~filteredTrax['treas_code'].isin(listTrax)] \
+    .sort_values(['treas_code','val_date','item_type','trans_amt'])
+ft['trans_amt'] = ft['trans_amt'].apply(lambda x: round(x, 2))
+fw = filteredWebcash[~filteredWebcash['treas_code'].isin(listWebcash)] \
+    .sort_values(['treas_code','val_date','item_type','trans_amt'])
+fw['trans_amt'] = fw['trans_amt'].apply(lambda x: round(x, 2))
+
+"""dropping transactions with 0 amoount from webcash"""
+# fw.drop(fw[fw.trans_amt == 0].index, inplace=True)
+
+"""to check if both scources contain same number of trescodes or not"""
+# t1 = pd. DataFrame(ft.treas_code.unique()).sort_values([0])
+
+# t2 = pd. DataFrame(fw.treas_code.unique()).sort_values([0])
+
+# they came equal now
+
+"""to check sum of all the transactions"""
+sumTrax = ft['trans_amt'].sum()
+sumWebcash = fw['trans_amt'].sum()
+
+"""making key value pair based on trescodes"""
+
+# dTrax = {}
+# for i in ft['treas_code'].unique():
+#     dTrax[i] = [{ft['val_date'][j]: [ft['item_type'][j],ft['trans_amt'][j]]} for j in ft[ft['treas_code']==i].index]
+# keyDtrax = list(dTrax.keys())
+# setT = set(dTrax)
+
+# dWb = {}
+# for i in fw['treas_code'].unique():
+#     dWb[i] = [{fw['val_date'][j]: [fw['item_type'][j],fw['trans_amt'][j]]} for j in fw[fw['treas_code']==i].index]
+# keyDwb = list(dWb.keys())
+# setW = set(dWb)
+
+# result = { k : dTrax[k] for k in setT - setW }
+"""Find Rows in Trax Which Are Not Available in Webcash"""
+transationTrax = ft.merge(fw, how = 'outer' ,indicator=True).loc[lambda x : x['_merge']=='left_only']
+transationTrax.drop(['_merge'], axis = 1, inplace = True)
+transationTrax["source"] = "trax"
+# s1 = df1['trans_amt'].sum()
+
+"""Find Rows in Webcash Which Are Not Available in Trax"""
+transactionWebcash = fw.merge(ft, how = 'outer' ,indicator=True).loc[lambda x : x['_merge']=='left_only']
+transactionWebcash.drop(['_merge'], axis = 1, inplace = True)
+transactionWebcash["source"] = "Webcash"
+# s2 = df2['trans_amt'].sum()
+
+result = pd.concat([transationTrax, transactionWebcash], axis=0)
+
+result.to_csv('C:\\Users\\1787912\\Desktop\\bal\\analysis.csv',index=False, mode='w')
+# for i in d1:
+#     if i not in d2:
+#         notMatchingList.append(i)
+
+# main_list = np.setdiff1d(d1,d2)
+# testTrax = pd. DataFrame(ft.treas_code.unique()).sort_values([0])
+# testWebcash = pd. DataFrame(fw.treas_code.unique()).sort_values([0])
